@@ -1,4 +1,5 @@
 #include "IncreasableString.h"
+#include <atomic>
 #include <iostream>
 #include <list>
 #include <ostream>
@@ -13,10 +14,10 @@
 
 void force(struct forcer_param);
 
-std::mutex m_found;
-bool found = false;
+std::atomic<bool> stop = false;
+std::atomic<bool> found = false;
 
-std::string target_hash = "334d5df7e9a67ea3370664ba4f50de08fbe1bb1f0b2c3d0bbd1a72ea5bbd4e91";
+std::string target_hash = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
 unsigned char target_hash_chars[SHA256_DIGEST_LENGTH];
 
 struct forcer_param {
@@ -62,12 +63,19 @@ void string_to_uchar_vector(const std::string& str, unsigned char hash[SHA256_DI
     }
 }
 
+void listen_for_quit() {
+    std::cin.ignore();
+    stop.store(true);
+}
+
 int main() {
     string_to_uchar_vector(target_hash, target_hash_chars);
 
     std::list<std::thread> threads;
     IncreasableString prefix(1);
     struct forcer_param param;
+
+    std::thread listener(listen_for_quit);
 
     for (int i = 1; i <= 7; i += 1) {
         std::cout << "Forcing with length = " << i + 1 << "\n";
@@ -83,11 +91,12 @@ int main() {
         }
         threads.clear();
 
-        if (found) {
+        if (found.load() || stop.load()) {
             break;
         }
     }
 
+    listener.join();
     return 0;
 }
 
@@ -96,10 +105,7 @@ void force(struct forcer_param params) {
     IncreasableString ic(params.length);
 
     do {
-        {
-            std::lock_guard<std::mutex> lock(m_found);
-            if (found) break;
-        }
+        if (found.load()) break;
 
         std::string tb_hashed = params.prefix + ic.get_string();
         bool success = sha256(tb_hashed.c_str(), hash, tb_hashed.length());
@@ -107,10 +113,7 @@ void force(struct forcer_param params) {
         if (success) {
             bool equal = std::equal(std::begin(hash), std::end(hash), std::begin(target_hash_chars));
             if (equal) {
-                {
-                    std::lock_guard<std::mutex> lock(m_found);
-                    found = true;
-                }
+                    found.store(true);
 
                 std::stringstream ss;
                 for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
@@ -124,5 +127,5 @@ void force(struct forcer_param params) {
             std::cout << "Fehler. " << std::endl;
         }
         ic += 1;
-    } while (!ic.endofword);
+    } while (!ic.endofword && !stop.load());
 }
