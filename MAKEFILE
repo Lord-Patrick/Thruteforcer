@@ -1,0 +1,36 @@
+# Compiler
+CXX = g++
+
+# Compiler-Flags
+CXXFLAGS = -Wall -std=c++17
+
+# Ordner für Quellcode und Binärdateien
+SRC_DIR = ./src
+BIN_DIR = ./bin
+
+# Namen der Quell- und Headerdateien
+SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/IncreasableString.cpp
+HDRS = $(SRC_DIR)/IncreasableString.h
+
+# Name der Ausgabedatei
+TARGET = $(BIN_DIR)/out
+
+# Standardziel: Kompiliere das Programm
+all: $(TARGET)
+
+# Ziel: Kompilieren des Programms
+$(TARGET): $(SRCS) $(HDRS) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(SRCS) -o $(TARGET) -lssl -lcrypto
+
+# Regel zum Erstellen des BIN_DIR, falls es nicht existiert
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+# Ziel: Entfernen der erzeugten Dateien
+clean:
+	rm -f $(TARGET)
+
+# Ziel: Neu kompilieren
+rebuild: clean all
+
+.PHONY: all clean rebuild
